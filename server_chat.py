@@ -155,7 +155,7 @@ def handle_waiting_data(write_list, open_client_sockets):
                     send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
             else:
                 send_message_specific_client(client_socket, NO_PERMISSION)
-        #-------------------------------------------------------------
+        #----------------------------------------------------------
 
     del data_to_handle[:]
 
