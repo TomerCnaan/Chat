@@ -143,16 +143,18 @@ def handle_waiting_data(write_list, open_client_sockets):
             if client_socket in admin_list:
                 length_username_to_kick = int(params_not_analyzed[:2:])  # length username to kick represented with 2 bytes
                 username_to_kick = params_not_analyzed[2:2+length_username_to_kick:]
-                print username_to_kick
-                if username_to_kick in clients_dict:
-                    socket_to_kick = clients_dict[username_to_kick]
-                    send_message_specific_client(socket_to_kick, "You have been kicked from the chat!")
-                    open_client_sockets.remove(socket_to_kick)
-                    clients_dict.pop(username_to_kick)
-                    msg = cur_time + " " + username_to_kick + " has been kicked from the chat!"
-                    send_message_to_all_clients(write_list, socket_to_kick, msg)
+                socket_to_kick = clients_dict[username_to_kick]
+                if not socket_to_kick in admin_list:
+                    if username_to_kick in clients_dict:
+                        send_message_specific_client(socket_to_kick, "You have been kicked from the chat!")
+                        open_client_sockets.remove(socket_to_kick)
+                        clients_dict.pop(username_to_kick)
+                        msg = cur_time + " " + username_to_kick + " has been kicked from the chat!"
+                        send_message_to_all_clients(write_list, socket_to_kick, msg)
+                    else:
+                        send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
                 else:
-                    send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
+                    send_message_specific_client(client_socket, NO_PERMISSION)
             else:
                 send_message_specific_client(client_socket, NO_PERMISSION)
         #----------------------------------------------------------

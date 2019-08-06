@@ -1,6 +1,7 @@
 import socket
 import select
 import re
+import sys
 from Tkinter import *
 from login_gui import *
 
@@ -14,7 +15,11 @@ TIMEOUT = 0.005
 #**GUI**
 FONT1 = "-family {Open Sans} -size 20 -weight bold -slant "  \
         "roman -underline 0 -overstrike 0"
-FONT1_SMALL = "-family {Open Sans} -size 14 -weight normal -slant "  \
+FONT1_SMALL = "-family {Open Sans} -size 11 -weight normal -slant "  \
+        "roman -underline 0 -overstrike 0"
+FONT1_MEDIUM = "-family {Open Sans} -size 14 -weight normal -slant "  \
+        "roman -underline 0 -overstrike 0"
+FONT1_TINY = "-family {Open Sans} -size 10 -weight normal -slant "  \
         "roman -underline 0 -overstrike 0"
 
 #***COMMANDS***
@@ -36,17 +41,17 @@ username = ''
 #************
 
 
-def check_username(event, cl_socket):
+def check_username(event, cl_socket, toplevel):
 
     if re.match("^[a-zA-Z0-9_.-]{4,12}$", username.get()):
-        print 'hello'
+        toplevel.destroy()
         #is_exist_query = int_to_2bytes_string(len(username.get())) + username.get() + INITIATE_USERNAME
         #cl_socket.send(is_exist_query)
 
 
 def login_page(sock):
     """
-
+    gui and functionality of the login page
     """
     root = Tk()
 
@@ -73,13 +78,41 @@ def login_page(sock):
     welcome_label.configure(foreground="white")
     welcome_label.configure(text='''Welcome to the chat!''')
 
+    enter_label = Label(login_frame)
+    enter_label.place(relx=0.205, rely=0.301, height=31, width=194)
+    enter_label.configure(background="#444")
+    enter_label.configure(font=FONT1_MEDIUM)
+    enter_label.configure(foreground="white")
+    enter_label.configure(text='''Enter username''')
+
     username_entry = Entry(login_frame)
     username_entry.place(relx=0.205, rely=0.411, height=30, relwidth=0.559)
     username_entry.configure(background="white")
-    username_entry.configure(font=FONT1_SMALL)
+    username_entry.configure(font=FONT1_MEDIUM)
     username_entry.configure(foreground="black")
     username_entry.configure(textvariable=username)
-    username_entry.bind("<Return>", lambda event=None, cl_socket=sock: check_username(event, cl_socket))
+    username_entry.bind("<Return>", lambda event=None, cl_socket=sock, toplevel=root: check_username(event, cl_socket, toplevel))
+
+    btn_login = Button(login_frame)
+    btn_login.place(relx=0.205, rely=0.575, height=34, width=204)
+    btn_login.configure(background="#31e0c9")
+    btn_login.configure(font=FONT1_SMALL)
+    btn_login.configure(foreground="black")
+    btn_login.configure(text='''Login''')
+    btn_login.configure(width=197)
+
+    canvas1 = Canvas(login_frame)
+    canvas1.place(relx=0.055, rely=0.795, relheight=0.003, relwidth=0.83)
+    canvas1.configure(background="#d9d9d9")
+    canvas1.configure(relief="ridge")
+    canvas1.configure(width=303)
+
+    info_msg_label = Label(login_frame)
+    info_msg_label.place(relx=0.068, rely=0.822, height=51, width=294)
+    info_msg_label.configure(background="#444")
+    info_msg_label.configure(borderwidth="0")
+    info_msg_label.configure(font=FONT1_TINY)
+    info_msg_label.configure(foreground="white")
 
     root.mainloop()
 
@@ -174,7 +207,7 @@ def handle_input(event, cl_socket):
         my_msg.set("")
         return None
 
-    data_to_server = int_to_2bytes_string(len(username)) + username + command_data
+    data_to_server = int_to_2bytes_string(len(username.get())) + username.get() + command_data
     print data_to_server
 
     my_msg.set("")
@@ -213,7 +246,7 @@ def main():
     scrollbar.pack(side=RIGHT, fill=Y)
     msg_list.pack(side=TOP, fill=BOTH, expand=True)
 
-    bottom_frame = Frame(root, bg="Grey65")
+    bottom_frame = Frame(root, bg="white")
     bottom_frame.pack(side=BOTTOM, fill=BOTH)
 
     entry_field = Entry(bottom_frame, textvariable=my_msg, width=50, justify=LEFT)  # where the client writes
