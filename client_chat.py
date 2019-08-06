@@ -1,8 +1,8 @@
 import socket
 import select
-import msvcrt
-import sys
+import re
 from Tkinter import *
+from login_gui import *
 
 #***SOCKET***
 IP = '127.0.0.1'
@@ -11,7 +11,14 @@ PORT = 34600
 TIMEOUT = 0.005
 #************
 
+#**GUI**
+FONT1 = "-family {Open Sans} -size 20 -weight bold -slant "  \
+        "roman -underline 0 -overstrike 0"
+FONT1_SMALL = "-family {Open Sans} -size 14 -weight normal -slant "  \
+        "roman -underline 0 -overstrike 0"
+
 #***COMMANDS***
+INITIATE_USERNAME = '00'
 CHAT_MESSAGE = '01'
 ADD_ADMIN = '02'
 KICK_USER = '03'
@@ -24,14 +31,57 @@ INVALID_INPUT = '**System alert: Your input is not valid. Make sure you follow t
 
 print 'Client is ready! \n'
 
-#******UI*******
-root = Tk()
-root.wm_geometry("500x400")
-root.title("CHAT")
-my_msg = StringVar()  # For the messages to be sent
-#***************
+#**USERNAME**
+username = ''
+#************
 
-user_name = raw_input("enter username")
+
+def check_username(event, cl_socket):
+
+    if re.match("^[a-zA-Z0-9_.-]{4,12}$", username.get()):
+        print 'hello'
+        #is_exist_query = int_to_2bytes_string(len(username.get())) + username.get() + INITIATE_USERNAME
+        #cl_socket.send(is_exist_query)
+
+
+def login_page(sock):
+    """
+
+    """
+    root = Tk()
+
+    root.geometry("360x349+786+200")
+    root.title("Login")
+    root.configure(background="#444")
+    root.configure(highlightbackground="#d9d9d9")
+    root.configure(highlightcolor="black")
+
+    global username
+    username = StringVar()
+    username.set("username")
+
+    login_frame = Frame(root)
+    login_frame.place(relx=0.0, rely=-0.029, relheight=1.046, relwidth=1.014)
+    login_frame.configure(borderwidth="1")
+    login_frame.configure(background="#444")
+    login_frame.configure(width=365)
+
+    welcome_label = Label(login_frame)
+    welcome_label.place(relx=0.0, rely=0.11, height=81, width=354)
+    welcome_label.configure(background="#444")
+    welcome_label.configure(font=FONT1)
+    welcome_label.configure(foreground="white")
+    welcome_label.configure(text='''Welcome to the chat!''')
+
+    username_entry = Entry(login_frame)
+    username_entry.place(relx=0.205, rely=0.411, height=30, relwidth=0.559)
+    username_entry.configure(background="white")
+    username_entry.configure(font=FONT1_SMALL)
+    username_entry.configure(foreground="black")
+    username_entry.configure(textvariable=username)
+    username_entry.bind("<Return>", lambda event=None, cl_socket=sock: check_username(event, cl_socket))
+
+    root.mainloop()
 
 
 def int_to_2bytes_string(num):
@@ -106,7 +156,7 @@ def handle_command(msg):
             return INVALID_INPUT
 
 
-def handle_input(event, cl_socket, username):
+def handle_input(event, cl_socket):
     """
     Function is called when the user sends his input by clicking ENTER or pressing the 'send' button.
     The function sends a string to the server containing data from the user following the protocol rules:
@@ -147,9 +197,15 @@ def main():
 
     #*******User Interface*******
 
-    #initialize username
-
+    login_page(my_socket)
     #-----------------
+
+    # chat page
+    root = Tk()
+    root.wm_geometry("500x400")
+    root.title("CHAT")
+    global my_msg
+    my_msg = StringVar()
 
     scrollbar = Scrollbar(root)  # To navigate through past messages
     msg_list = Listbox(root, yscrollcommand=scrollbar.set)  # where the chat messages are shown
@@ -161,12 +217,10 @@ def main():
     bottom_frame.pack(side=BOTTOM, fill=BOTH)
 
     entry_field = Entry(bottom_frame, textvariable=my_msg, width=50, justify=LEFT)  # where the client writes
-    entry_field.bind("<Return>", lambda event=None, cl_socket=my_socket, username=user_name: handle_input(event, cl_socket
-                                                                                                        , username))
+    entry_field.bind("<Return>", lambda event=None, cl_socket=my_socket: handle_input(event, cl_socket))
     entry_field.pack(side=LEFT, fill=BOTH)
     send_button = Button(bottom_frame, fg="dark green", font=("Helvetica", 10, "bold italic"), text="send",
-                         command=lambda event=None, cl_socket=my_socket, username=user_name: handle_input(event, cl_socket
-                                                                                                        , username))
+                         command=lambda event=None, cl_socket=my_socket: handle_input(event, cl_socket))
     send_button.pack(side=LEFT, fill=BOTH)
     clear_button = Button(bottom_frame, fg="SteelBlue2", font=("Helvetica", 10, "bold italic"), text="clear screen",
                           command=lambda event=None, text_list=msg_list: clear(event, text_list))
