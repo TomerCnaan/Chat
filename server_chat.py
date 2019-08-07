@@ -11,6 +11,7 @@ TIMEOUT = 0.005
 #**************
 
 #***COMMANDS***
+INITIATE_USERNAME = '00'
 CHAT_MESSAGE = '01'
 ADD_ADMIN = '02'
 KICK_USER = '03'
@@ -52,6 +53,7 @@ def send_message_specific_client(_socket, msg):
     The function sends a string following the protocol rules to a given client.
     """
     _socket.send(int_to_3bytes_string(len(msg)) + msg)
+    print 'message sent: ' + int_to_3bytes_string(len(msg)) + msg + '\n'
 
 
 def send_message_to_all_clients(clients_to_send_to, cl_socket, msg):
@@ -101,23 +103,34 @@ def handle_waiting_data(write_list, open_client_sockets):
         (client_socket, data) = _data
 
         cur_username, cur_command, params_not_analyzed = analyze_data(data)
-        if not cur_username in clients_dict:  # if new client, add to the clients dictionary
-            clients_dict[cur_username] = client_socket
+        if cur_command == INITIATE_USERNAME:
+            if not cur_username in clients_dict:  # if new client, add to the clients dictionary
+                clients_dict[cur_username] = client_socket
+                send_message_specific_client(client_socket, "valid")
+                if client_socket in admin_list:
+                    client_socket.send(int_to_3bytes_string(len(PROMOTED_MESSAGE)) + PROMOTED_MESSAGE)
+            else:
+                send_message_specific_client(client_socket, "invalid")
 
         if client_socket in admin_list:
             cur_username = "@" + cur_username
         cur_time = datetime.datetime.now().time().strftime("%H:%M")
+
         #-------------------------------------------------------------
         if cur_command == CHAT_MESSAGE:
             length_msg = int(params_not_analyzed[:3:])  # message length is represented with 3 bytes
             if params_not_analyzed[3:3+length_msg:].lower() == "quit":  # if message is "quit"
+                if cur_username[0] == '@':
+                    cur_username = cur_username[1::]
+                else:
+                    clients_dict.pop(cur_username)
                 open_client_sockets.remove(client_socket)
-                clients_dict.pop(cur_username)
                 msg = cur_time + " " + cur_username + " has left the chat!"
                 send_message_to_all_clients(write_list, client_socket, msg)
                 print "Connection with client closed."
-            msg = cur_time + " " + cur_username + ": " + params_not_analyzed[3:3+length_msg:]
-            send_message_to_all_clients(write_list, client_socket, msg)
+            else:
+                msg = cur_time + " " + cur_username + ": " + params_not_analyzed[3:3+length_msg:]
+                send_message_to_all_clients(write_list, client_socket, msg)
 
         #- - - - - - - - - - - - - - -
 
@@ -154,7 +167,18 @@ def handle_waiting_data(write_list, open_client_sockets):
                     else:
                         send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
                 else:
-                    send_message_specific_client(client_socket, NO_PERMISSION)
+                    send_message_specific_client(client_socket, "You do not have a permission to kick other admins")
+            else:
+                send_message_specific_client(client_socket, NO_PERMISSION)
+
+        #- - - - - - - - - - - - - - -
+
+        if cur_command == MUTE_USER:
+            if client_socket in admin_list:
+                length_username_to_mute = int(params_not_analyzed[:2:])  # length username to mute represented with 2 bytes
+                username_to_mute = params_not_analyzed[2:2+length_username_to_mute:]
+                time_to_mute = int(params_not_analyzed[2+length_username_to_mute::])
+                #  TODO : mute time (handle mute)
             else:
                 send_message_specific_client(client_socket, NO_PERMISSION)
         #----------------------------------------------------------
@@ -175,12 +199,14 @@ def main():
         # wList contains only those with an active socket
         # xList - unused
 
+        global admin_list
+
         for current_socket in read_list:
             if current_socket is server_socket:
                 (new_socket, address) = server_socket.accept()
+                print 'new connection'
                 if not open_client_sockets:
                     admin_list.append(new_socket)
-                    new_socket.send(int_to_3bytes_string(len(PROMOTED_MESSAGE)) + PROMOTED_MESSAGE)
                 open_client_sockets.append(new_socket)
             else:
 
@@ -198,6 +224,10 @@ def main():
                 else:
                     print 'Client data: ', data, '\n'
                     data_to_handle.append((current_socket, data))
+
+        for admin in admin_list:
+            if not admin in open_client_sockets:
+                admin_list.remove(admin)
         handle_waiting_data(write_list, open_client_sockets)
 
 

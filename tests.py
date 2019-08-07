@@ -1,17 +1,21 @@
 import datetime
 from Tkinter import *
+import time
+import datetime
 
-root = Tk()
+'''root = Tk()
 
 username = StringVar()
-username.set(raw_input("enter"))
+username.set(raw_input("enter"))'''
 
 
 def main():
-    if re.match("^[a-zA-Z0-9_.-]{4,12}$", username.get()):
-        print 'hello'
-    else:
-        print 'wtf'
+    cur_time = time.strftime("%H:%M:%S")
+    print cur_time
+
+    hour, minute, second = cur_time.split(":")
+    expired_time = datetime.timedelta(seconds=10) + datetime.timedelta(hours=int(hour), minutes=int(minute), seconds=int(second))
+    print expired_time
 
 if __name__ == '__main__':
     main()

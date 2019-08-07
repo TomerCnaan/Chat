@@ -43,10 +43,24 @@ username = ''
 
 def check_username(event, cl_socket, toplevel):
 
-    if re.match("^[a-zA-Z0-9_.-]{4,12}$", username.get()):
-        toplevel.destroy()
-        #is_exist_query = int_to_2bytes_string(len(username.get())) + username.get() + INITIATE_USERNAME
-        #cl_socket.send(is_exist_query)
+    if re.match("^[a-zA-Z0-9_.-]{3,12}$", username.get()):
+        is_exist_query = int_to_2bytes_string(len(username.get())) + username.get() + INITIATE_USERNAME
+        cl_socket.send(is_exist_query)
+        length_server_data = int(cl_socket.recv(3))  # receive the length of the server data(always 3 bytes string)
+        server_data = cl_socket.recv(length_server_data)
+        print server_data
+        if server_data == "valid":
+            toplevel.destroy()
+            print 'valid username'
+        elif server_data == "invalid":
+            print 'invalid username'
+            msg_invalid.set("UserName is already taken! peek a different name")
+    elif len(username.get()) < 3 or len(username.get()) > 12:
+        msg_invalid.set("Username length is between 3 to 12")
+    elif " " in username.get():
+        msg_invalid.set("Spaces are not allowed!")
+    else:
+        msg_invalid.set("The allowed symbols are:  _.-")
 
 
 def login_page(sock):
@@ -64,6 +78,9 @@ def login_page(sock):
     global username
     username = StringVar()
     username.set("username")
+
+    global msg_invalid
+    msg_invalid = StringVar()
 
     login_frame = Frame(root)
     login_frame.place(relx=0.0, rely=-0.029, relheight=1.046, relwidth=1.014)
@@ -100,6 +117,7 @@ def login_page(sock):
     btn_login.configure(foreground="black")
     btn_login.configure(text='''Login''')
     btn_login.configure(width=197)
+    btn_login.configure(command=lambda event=None, cl_socket=sock, toplevel=root: check_username(event, cl_socket, toplevel))
 
     canvas1 = Canvas(login_frame)
     canvas1.place(relx=0.055, rely=0.795, relheight=0.003, relwidth=0.83)
@@ -113,6 +131,8 @@ def login_page(sock):
     info_msg_label.configure(borderwidth="0")
     info_msg_label.configure(font=FONT1_TINY)
     info_msg_label.configure(foreground="white")
+    info_msg_label.configure(justify='left')
+    info_msg_label.configure(textvariable=msg_invalid)
 
     root.mainloop()
 
@@ -262,22 +282,28 @@ def main():
 
     while True:
 
-        root.update_idletasks()
-        root.update()
+        try:
 
-        #if the server sends data to the client the 'read_list' variable will get the socket with the message
-        read_list, write_list, error_list = select.select(socket_list, [], [], TIMEOUT)
+            root.update_idletasks()
+            root.update()
 
-        #if there is data from the server the client will read it and print it
-        if len(read_list) != 0:
-            length_server_data = int(my_socket.recv(3))  # receive the length of the server data(always 3 bytes string)
-            server_data = my_socket.recv(length_server_data)
-            if server_data is None:
-                print None
-            else:
-                msg_list.insert(END, server_data)
+            #if the server sends data to the client the 'read_list' variable will get the socket with the message
+            read_list, write_list, error_list = select.select(socket_list, [], [], TIMEOUT)
+
+            #if there is data from the server the client will read it and print it
+            if len(read_list) != 0:
+                length_server_data = int(my_socket.recv(3))  # receive the length of the server data(always 3 bytes string)
+                server_data = my_socket.recv(length_server_data)
+                if server_data is None:
+                    print None
+                else:
+                    msg_list.insert(END, server_data)
+        except:
+            my_socket.close()
+            sys.exit(0)
 
     my_socket.close()
+    sys.exit(0)
 
 if __name__ == '__main__':
     main()
