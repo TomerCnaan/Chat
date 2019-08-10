@@ -30,6 +30,7 @@ KICK_USER = '03'
 MUTE_USER = '04'
 UNMUTE_USER = '05'
 PRIVATE_CHAT = '06'
+STATS = '07'
 #**************
 DEFAULT_MUTE_TIME = '03'
 INVALID_INPUT = '**System alert: Your input is not valid. Make sure you follow the chat protocol**'
@@ -42,7 +43,9 @@ username = ''
 
 
 def check_username(event, cl_socket, toplevel):
-
+    """
+    handles username validation
+    """
     if re.match("^[a-zA-Z0-9_.-]{3,12}$", username.get()):
         is_exist_query = int_to_2bytes_string(len(username.get())) + username.get() + INITIATE_USERNAME
         cl_socket.send(is_exist_query)
@@ -205,6 +208,9 @@ def handle_command(msg):
             command_data_to_server = UNMUTE_USER + int_to_2bytes_string(len(user_to_unmute)) + user_to_unmute
             return command_data_to_server
 
+        elif current_command == "stats":
+            return STATS
+
         else:
             return INVALID_INPUT
 
@@ -298,7 +304,8 @@ def main():
                     print None
                 else:
                     msg_list.insert(END, server_data)
-        except:
+        except Exception, e:
+            print str(e)
             my_socket.close()
             sys.exit(0)
 
@@ -307,3 +314,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# TODO: check scroll wheel
+# TODO: add my_msg to gui
