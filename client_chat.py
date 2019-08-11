@@ -171,6 +171,7 @@ def handle_command(msg):
     current_command = ""
 
     if msg[0:2:1] != ">>":
+
         command_data_to_server = CHAT_MESSAGE + int_to_3bytes_string(len(msg)) + msg
         return command_data_to_server
 
@@ -228,6 +229,7 @@ def handle_input(event, cl_socket):
         return None
 
     command_data = handle_command(msg)
+    msg_list.insert(END, msg)
     if command_data == INVALID_INPUT:
         print INVALID_INPUT
         my_msg.set("")
@@ -266,8 +268,14 @@ def main():
     global my_msg
     my_msg = StringVar()
 
-    scrollbar = Scrollbar(root)  # To navigate through past messages
-    msg_list = Listbox(root, yscrollcommand=scrollbar.set)  # where the chat messages are shown
+    frame = Frame(root)
+    frame.pack()
+    global msg_list
+    msg_list = Listbox(frame, width=100, height=23)  # where the chat messages are shown
+    scrollbar = Scrollbar(frame, orient="vertical")  # To navigate through past messages
+    scrollbar.config(command=msg_list.yview)
+    scrollbar.pack(side="right", fill="y")
+    msg_list.configure(yscrollcommand=scrollbar.set)
     my_msg.set("Type your messages here.")
     scrollbar.pack(side=RIGHT, fill=Y)
     msg_list.pack(side=TOP, fill=BOTH, expand=True)
@@ -315,5 +323,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-# TODO: check scroll wheel
 # TODO: add my_msg to gui
