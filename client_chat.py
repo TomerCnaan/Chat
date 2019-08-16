@@ -2,6 +2,8 @@ import socket
 import select
 import re
 import sys
+import datetime
+import time
 from Tkinter import *
 from login_gui import *
 
@@ -40,12 +42,15 @@ print 'Client is ready! \n'
 #**USERNAME**
 username = ''
 #************
+validation = False
 
 
 def check_username(event, cl_socket, toplevel):
     """
     handles username validation
     """
+    global validation
+
     if re.match("^[a-zA-Z0-9_.-]{3,12}$", username.get()):
         is_exist_query = int_to_2bytes_string(len(username.get())) + username.get() + INITIATE_USERNAME
         cl_socket.send(is_exist_query)
@@ -53,6 +58,7 @@ def check_username(event, cl_socket, toplevel):
         server_data = cl_socket.recv(length_server_data)
         print server_data
         if server_data == "valid":
+            validation = True
             toplevel.destroy()
             print 'valid username'
         elif server_data == "invalid":
@@ -171,6 +177,8 @@ def handle_command(msg):
     current_command = ""
 
     if msg[0:2:1] != ">>":
+        show_my_msg = datetime.datetime.now().time().strftime("%H:%M") + " (me)" + username.get() + ": " + msg
+        msg_list.insert(END, show_my_msg)
 
         command_data_to_server = CHAT_MESSAGE + int_to_3bytes_string(len(msg)) + msg
         return command_data_to_server
@@ -180,19 +188,25 @@ def handle_command(msg):
         current_command = current_command_and_params[0].lower()
 
         if current_command == "add_admin":
-            user_to_promote = current_command_and_params[1]
-            command_data_to_server = ADD_ADMIN + int_to_2bytes_string(len(user_to_promote)) + user_to_promote
-            return command_data_to_server
+            if len(current_command_and_params) == 2:
+                user_to_promote = current_command_and_params[1]
+                command_data_to_server = ADD_ADMIN + int_to_2bytes_string(len(user_to_promote)) + user_to_promote
+                return command_data_to_server
+            else:
+                return INVALID_INPUT
 
         elif current_command == "kick":
-            user_to_kick = current_command_and_params[1]
-            command_data_to_server = KICK_USER + int_to_2bytes_string(len(user_to_kick)) + user_to_kick
-            return command_data_to_server
+            if len(current_command_and_params) == 2:
+                user_to_kick = current_command_and_params[1]
+                command_data_to_server = KICK_USER + int_to_2bytes_string(len(user_to_kick)) + user_to_kick
+                return command_data_to_server
+            else:
+                return INVALID_INPUT
 
         elif current_command == "mute":
             mute_time = ""
-            user_to_mute = current_command_and_params[1]
             if len(current_command_and_params) == 3:
+                user_to_mute = current_command_and_params[1]
                 if current_command_and_params[2].isdigit():
                     mute_time = int_to_2bytes_string(int(current_command_and_params[2]))
                 else:
@@ -205,9 +219,23 @@ def handle_command(msg):
             return command_data_to_server
 
         elif current_command == "unmute":
-            user_to_unmute = current_command_and_params[1]
-            command_data_to_server = UNMUTE_USER + int_to_2bytes_string(len(user_to_unmute)) + user_to_unmute
-            return command_data_to_server
+            if len(current_command_and_params) == 2:
+                user_to_unmute = current_command_and_params[1]
+                command_data_to_server = UNMUTE_USER + int_to_2bytes_string(len(user_to_unmute)) + user_to_unmute
+                return command_data_to_server
+            else:
+                return INVALID_INPUT
+
+        elif current_command == "private_msg":
+            if len(current_command_and_params) >= 3:
+                user_to_direct = current_command_and_params[1]
+                del current_command_and_params[0:2]
+                direct_msg = " ".join(current_command_and_params)
+                command_data_to_server = PRIVATE_CHAT + int_to_2bytes_string(len(user_to_direct)) + user_to_direct +\
+                                                                                                int_to_3bytes_string(len(direct_msg)) + direct_msg
+                return command_data_to_server
+            else:
+                return INVALID_INPUT
 
         elif current_command == "stats":
             return STATS
@@ -229,9 +257,9 @@ def handle_input(event, cl_socket):
         return None
 
     command_data = handle_command(msg)
-    msg_list.insert(END, msg)
+
     if command_data == INVALID_INPUT:
-        print INVALID_INPUT
+        msg_list.insert(END, INVALID_INPUT)
         my_msg.set("")
         return None
 
@@ -255,10 +283,14 @@ def main():
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     my_socket.connect((IP, PORT))
     socket_list = [my_socket]
-
-    #*******User Interface*******
+    #-----------------
 
     login_page(my_socket)
+    if not validation:
+        print "client failed to choose a valid username"
+        my_socket.close()
+        sys.exit(0)
+
     #-----------------
 
     # chat page
@@ -322,5 +354,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# TODO: add my_msg to gui

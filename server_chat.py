@@ -23,6 +23,7 @@ STATS = '07'
 #**************
 
 #***GLOBAL VARIABLES***
+all_usernames = []  # [username]
 clients_dict = {}  # {username : socket}
 data_to_handle = []  # [(socket, data)]
 admin_list = []  # [socket]
@@ -134,7 +135,8 @@ def handle_waiting_data(write_list, open_client_sockets):
         cur_time = datetime.datetime.now().time().strftime("%H:%M")
 
         if cur_command == INITIATE_USERNAME:
-            if not cur_username in clients_dict:  # if new client, add to the clients dictionary
+            if not cur_username in all_usernames:  # if new client, add to the clients dictionary
+                all_usernames.append(cur_username)
                 clients_dict[cur_username] = client_socket
                 send_message_specific_client(client_socket, "valid")
                 stats_list.append([cur_username, cur_time, cur_time, 0])
@@ -200,6 +202,7 @@ def handle_waiting_data(write_list, open_client_sockets):
                     else:
                         admin_list.append(socket_to_add)
                         send_message_specific_client(socket_to_add, PROMOTED_MESSAGE)
+                        send_message_specific_client(client_socket, "**" + username_to_add + " promoted to admin successfully**")
                 else:
                     send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
             else:
@@ -228,24 +231,27 @@ def handle_waiting_data(write_list, open_client_sockets):
                 send_message_specific_client(client_socket, NO_PERMISSION)
 
         #- - - - - - - - - - - - - - -
-
+        
         elif cur_command == MUTE_USER:
             if client_socket in admin_list:
                 length_username_to_mute = int(params_not_analyzed[:2:])  # length username to mute represented with 2 bytes
                 username_to_mute = params_not_analyzed[2:2+length_username_to_mute:]
-                if not clients_dict[username_to_mute] in admin_list:  # if user to mute is not admin
-                    time_to_mute = int(params_not_analyzed[2+length_username_to_mute::])
-                    cur_time = time.strftime("%H:%M:%S")
-                    hour, minute, second = cur_time.split(":")
-                    expired_time = datetime.timedelta(minutes=time_to_mute) + datetime.timedelta(hours=int(hour), minutes=int(minute),
-                                                                                                 seconds=int(second))
-                    muted_dict[username_to_mute] = expired_time
-                    msg = cur_time + " **" + username_to_mute + " has been muted for " + str(time_to_mute) + " minutes**"
-                    send_message_to_all_clients(write_list, clients_dict[username_to_mute], msg)
-                    msg = cur_time + " **You have been muted for " + str(time_to_mute) + " minutes"
-                    send_message_specific_client(clients_dict[username_to_mute], msg)
+                if username_to_mute in clients_dict:
+                    if not clients_dict[username_to_mute] in admin_list:  # if user to mute is not admin
+                        time_to_mute = int(params_not_analyzed[2+length_username_to_mute::])
+                        cur_time = time.strftime("%H:%M:%S")
+                        hour, minute, second = cur_time.split(":")
+                        expired_time = datetime.timedelta(minutes=time_to_mute) + datetime.timedelta(hours=int(hour), minutes=int(minute),
+                                                                                                     seconds=int(second))
+                        muted_dict[username_to_mute] = expired_time
+                        msg = cur_time + " **" + username_to_mute + " has been muted for " + str(time_to_mute) + " minutes**"
+                        send_message_to_all_clients(write_list, clients_dict[username_to_mute], msg)
+                        msg = cur_time + " **You have been muted for " + str(time_to_mute) + " minutes"
+                        send_message_specific_client(clients_dict[username_to_mute], msg)
+                    else:
+                        send_message_specific_client(client_socket, NO_PERMISSION)
                 else:
-                    send_message_specific_client(client_socket, NO_PERMISSION)
+                    send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
             else:
                 send_message_specific_client(client_socket, "**You do not have a permission to mute other admins**")
 
@@ -258,12 +264,11 @@ def handle_waiting_data(write_list, open_client_sockets):
                 if username_to_unmute in muted_dict:
                     muted_dict.pop(username_to_unmute)
                     send_message_specific_client(clients_dict[username_to_unmute], "**Your mute has been removed**")
+                    send_message_specific_client(client_socket, "**The mute has been removed successfully**")
                 else:
-                    send_message_specific_client(clients_dict[cur_username], "**" + username_to_unmute + " is not muted")
+                    send_message_specific_client(client_socket, "**" + username_to_unmute + " is not muted")
 
         #- - - - - - - - - - - - - - -
-        # TODO: disable dup
-        # TODO: add messages to admins commands
 
         elif cur_command == STATS:
             count = 0
@@ -299,6 +304,30 @@ def handle_waiting_data(write_list, open_client_sockets):
                 msg = "           " + stats_list[index][0] + ":    Entrance time: " + stats_list[index][1] + "    " + exit_or_current_time + \
                       stats_list[index][2]
                 send_message_specific_client(clients_dict[cur_username], msg)
+
+        #- - - - - - - - - - - - - - -
+
+        elif cur_command == PRIVATE_CHAT:
+            is_muted = False
+            if cur_username in muted_dict:
+                time_now = time.strftime("%H:%M:%S")
+                hour, minute, second = time_now.split(":")
+                time_now = datetime.timedelta(hours=int(hour), minutes=int(minute), seconds=int(second))
+                if muted_dict[cur_username] > time_now:
+                    is_muted = True
+                    send_message_specific_client(client_socket, MUTED)
+                else:
+                    muted_dict.pop(cur_username)
+            if not is_muted:
+                length_username_to_direct = int(params_not_analyzed[:2:])  # length username to direct msg represented with 2 bytes
+                username_to_direct = params_not_analyzed[2:2+length_username_to_direct:]
+                if username_to_direct in clients_dict:
+                    length_msg = int(params_not_analyzed[2+length_username_to_direct:2+length_username_to_direct+3:])
+                    msg = cur_time + " !" + cur_username + ": " + params_not_analyzed[2+length_username_to_direct+3:
+                                                                                      2+length_username_to_direct+3 + length_msg:]
+                    send_message_specific_client(clients_dict[username_to_direct], msg)
+                else:
+                    send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
         #----------------------------------------------------------
 
     del data_to_handle[:]
