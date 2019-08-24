@@ -36,7 +36,7 @@ PROMOTED_MESSAGE = "**You have been promoted to admin!**"
 ALREADY_ADMIN = "**The user is already admin**"
 NO_PERMISSION = "**You don't have permission to use this command. To use this command you must be admin**"
 USERNAME_NOT_EXIST = "**The username you entered doesn't exist**"
-MUTED = "**You are currently muted**"
+MUTED = "**You are currently muted. Your message could not be sent**"
 #****************
 
 print 'Server is ready! \n'
@@ -92,7 +92,8 @@ def send_message_to_all_clients(clients_to_send_to, cl_socket, msg):
     """
     msg = int_to_3bytes_string(len(msg)) + msg
     if cl_socket in clients_to_send_to:
-            for client in clients_to_send_to:
+        for client in clients_to_send_to:
+            if client in clients_dict.values():
                 if client != cl_socket:
                     client.send(msg)
                     print 'message sent \n'
@@ -214,9 +215,9 @@ def handle_waiting_data(write_list, open_client_sockets):
             if client_socket in admin_list:
                 length_username_to_kick = int(params_not_analyzed[:2:])  # length username to kick represented with 2 bytes
                 username_to_kick = params_not_analyzed[2:2+length_username_to_kick:]
-                socket_to_kick = clients_dict[username_to_kick]
-                if not socket_to_kick in admin_list:
-                    if username_to_kick in clients_dict:
+                if username_to_kick in clients_dict:
+                    socket_to_kick = clients_dict[username_to_kick]
+                    if not socket_to_kick in admin_list:
                         send_message_specific_client(socket_to_kick, "**You have been kicked from the chat!**")
                         update_stats(cur_username, cur_time)
                         open_client_sockets.remove(socket_to_kick)
@@ -224,14 +225,14 @@ def handle_waiting_data(write_list, open_client_sockets):
                         msg = cur_time + " **" + username_to_kick + " has been kicked from the chat!**"
                         send_message_to_all_clients(write_list, socket_to_kick, msg)
                     else:
-                        send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
+                        send_message_specific_client(client_socket, "**You do not have a permission to kick other admins**")
                 else:
-                    send_message_specific_client(client_socket, "**You do not have a permission to kick other admins**")
+                    send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
             else:
                 send_message_specific_client(client_socket, NO_PERMISSION)
 
         #- - - - - - - - - - - - - - -
-        
+
         elif cur_command == MUTE_USER:
             if client_socket in admin_list:
                 length_username_to_mute = int(params_not_analyzed[:2:])  # length username to mute represented with 2 bytes
@@ -246,14 +247,14 @@ def handle_waiting_data(write_list, open_client_sockets):
                         muted_dict[username_to_mute] = expired_time
                         msg = cur_time + " **" + username_to_mute + " has been muted for " + str(time_to_mute) + " minutes**"
                         send_message_to_all_clients(write_list, clients_dict[username_to_mute], msg)
-                        msg = cur_time + " **You have been muted for " + str(time_to_mute) + " minutes"
+                        msg = cur_time + " **You have been muted for " + str(time_to_mute) + " minutes**"
                         send_message_specific_client(clients_dict[username_to_mute], msg)
                     else:
-                        send_message_specific_client(client_socket, NO_PERMISSION)
+                        send_message_specific_client(client_socket, "**You do not have a permission to mute other admins**")
                 else:
                     send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
             else:
-                send_message_specific_client(client_socket, "**You do not have a permission to mute other admins**")
+                send_message_specific_client(client_socket, NO_PERMISSION)
 
         #- - - - - - - - - - - - - - -
 
@@ -261,12 +262,18 @@ def handle_waiting_data(write_list, open_client_sockets):
             if client_socket in admin_list:
                 length_username_to_unmute = int(params_not_analyzed[:2:])  # length username to mute represented with 2 bytes
                 username_to_unmute = params_not_analyzed[2:2+length_username_to_unmute:]
-                if username_to_unmute in muted_dict:
-                    muted_dict.pop(username_to_unmute)
-                    send_message_specific_client(clients_dict[username_to_unmute], "**Your mute has been removed**")
-                    send_message_specific_client(client_socket, "**The mute has been removed successfully**")
+                if clients_dict[cur_username] in admin_list:
+                    if username_to_unmute in clients_dict:
+                        if username_to_unmute in muted_dict:
+                            muted_dict.pop(username_to_unmute)
+                            send_message_specific_client(clients_dict[username_to_unmute], "**Your mute has been removed**")
+                            send_message_specific_client(client_socket, "**The mute has been removed successfully**")
+                        else:
+                            send_message_specific_client(client_socket, "**" + username_to_unmute + " is not muted**")
+                    else:
+                        send_message_specific_client(client_socket, USERNAME_NOT_EXIST)
                 else:
-                    send_message_specific_client(client_socket, "**" + username_to_unmute + " is not muted")
+                    send_message_specific_client(client_socket, NO_PERMISSION)
 
         #- - - - - - - - - - - - - - -
 
@@ -373,9 +380,10 @@ def main():
                             clients_dict.pop(user)
                             msg += user
                             cur_user = user
-                    msg += " has left the chat**"
-                    update_stats(cur_user, cur_time)
-                    send_message_to_all_clients(write_list, current_socket, msg)
+                    if not cur_user is None:
+                        msg += " has left the chat**"
+                        update_stats(cur_user, cur_time)
+                        send_message_to_all_clients(write_list, current_socket, msg)
                     open_client_sockets.remove(current_socket)
 
                     print "Connection with client closed."

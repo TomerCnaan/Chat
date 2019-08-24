@@ -212,6 +212,7 @@ def handle_command(msg):
                 else:
                     return INVALID_INPUT
             elif len(current_command_and_params) == 2:
+                user_to_mute = current_command_and_params[1]
                 mute_time = DEFAULT_MUTE_TIME
             else:
                 return INVALID_INPUT
@@ -231,6 +232,8 @@ def handle_command(msg):
                 user_to_direct = current_command_and_params[1]
                 del current_command_and_params[0:2]
                 direct_msg = " ".join(current_command_and_params)
+                show_my_msg = datetime.datetime.now().time().strftime("%H:%M") + " !(me)" + username.get() + ": " + direct_msg
+                msg_list.insert(END, show_my_msg)
                 command_data_to_server = PRIVATE_CHAT + int_to_2bytes_string(len(user_to_direct)) + user_to_direct +\
                                                                                                 int_to_3bytes_string(len(direct_msg)) + direct_msg
                 return command_data_to_server
